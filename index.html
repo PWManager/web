@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PWManager</title>
-    <link rel="stylesheet" href="modules/bootstrap.css">
     <style>
         body {
             background-color: #1f1f1f;
@@ -80,6 +79,10 @@
         .change_language {
             display: none;
         }
+
+        .danger_button {
+            background: #ff0000;
+        }
     </style>
 </head>
 <body>
@@ -125,7 +128,7 @@
     <br><br>
     <button onclick="viewPasswords()">View Passwords</button>
     <br><br>
-    <button onclick="deletePassword()" type="button" class="btn btn-danger">Delete Password</button>
+    <button onclick="deletePassword()" class="danger_button">Delete Password</button>
     <br><br>
     <button onclick="generatePassword()">Generate Password</button>
 </div>
