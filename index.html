@@ -61,14 +61,6 @@
             margin: 10px 0;
         }
 
-        .change_language {
-            position: fixed;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            left: 95%;
-        }
-
         @media (max-width: 800px) {
             .change_language {
                 left: 70%;
@@ -76,80 +68,22 @@
             }
         }
 
-        /*.change_language {
-            display: ;
-        }
-        */
-
         .danger_button {
             background: #ff0000;
         }
+
+        footer {
+            background: #1f1f1f;
+            color: white;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            right: 2px;
+        }
     </style>
-    <script>
-        const translations = {
-            en: {
-                pwmanager: "PWManager",
-                site: "Site:",
-                password: "Password:",
-                master: "Master Password:",
-                savePassword: "Save Password",
-                viewPasswords: "View Passwords",
-                saved: "Saved Passwords:",
-                noPasswords: "No passwords saved",
-                DeletePassword: "Delete Password",
-                GeneratePassword: "Generate Password",
-                save2FA: "Save 2FA Secret",
-                view2FA: "View 2FA Codes",
-                no2FACodes: "No 2FA Codes Saved",
-                passwords: "Passwords Saved",
-            },
-            ru: {
-                pwmanager: "PWManager",
-                site: "Сайт:",
-                password: "Пароль:",
-                master: "Мастер-пароль:",
-                savePassword: "Сохранить пароль",
-                viewPasswords: "Показать пароли",
-                saved: "Сохранённые пароли:",
-                noPasswords: "Пароли не сохранены",
-                DeletePassword: "Удалить пароль",
-                GeneratePassword: "Сгенерировать пароль",
-                save2FA: "Сохранить 2FA секрет",
-                view2FA: "Просмотреть 2FA Коды",
-                no2FACodes: "2FA Коды не сохранены",
-                passwords: "Сохранённые пароли",
-            }
-        };
-
-        let currentLang = localStorage.getItem("lang") || "en";
-
-        function translateUI() {
-            document.querySelectorAll("[data-i18n]").forEach(el => {
-                const key = el.dataset.i18n;
-                if (translations[currentLang] && translations[currentLang][key]) {
-                    el.innerText = translations[currentLang][key];
-                }
-            });
-        }
-
-        function toggleLang() {
-            currentLang = currentLang === "en" ? "ru" : "en";
-            localStorage.setItem("lang", currentLang);
-            translateUI();
-        }
-
-        document.addEventListener("DOMContentLoaded", translateUI);
-    </script>
 </head>
 <body>
 <br><br>
-
-<div class="change_language">
-    <button id="languageButton" onclick="toggleLang()">
-        <img src="images/russia.svg" alt="Flag of Russia" width="50" height="50" id="flag">
-        <b id="language">Russian</b>
-    </button>
-</div>
 
 <h1 data-i18n="pwmanager">PWManager</h1>
 
@@ -161,24 +95,24 @@
 </div>
 
 <div>
-    <button data-i18n="savePassword" onclick="createPassword()">Save Password</button>
+    <button onclick="createPassword()">Save Password</button>
     <br><br>
-    <button data-i18n="viewPasswords" onclick="viewPasswords()">View Passwords</button>
+    <button onclick="viewPasswords()">View Passwords</button>
     <br><br>
-    <button data-i18n="DeletePassword" onclick="deletePassword()" class="danger_button">Delete Password</button>
+    <button onclick="deletePassword()" class="danger_button">Delete Password</button>
     <br><br>
-    <button data-i18n="GeneratePassword" onclick="generatePassword()">Generate Password</button>
+    <button onclick="generatePassword()">Generate Password</button>
 </div>
 
 <div style="margin-top: 20px;">
     <br><br>
-    <button data-i18n="save2FA" onclick="save2FA()">Save 2FA Secret</button>
+    <button onclick="save2FA()">Save 2FA Secret</button>
     <br><br>
-    <button data-i18n="view2FA" onclick="view2FA()">View 2FA Codes</button>
+    <button onclick="view2FA()">View 2FA Codes</button>
 </div>
 
 <dialog id="passwordDialog">
-    <h1 data-i18n="saved">Saved Passwords</h1>
+    <h1 >Saved Passwords</h1>
     <div id="passwordDialogContent"></div>
     <button onclick="passwordDialog.close()">Close</button>
 </dialog>
@@ -188,6 +122,10 @@
     <div id="twoFADialogContent"></div>
     <button onclick="twoFADialog.close()">Close</button>
 </dialog>
+
+<footer>
+    <a href="ru.html">Сменить язык</a>
+</footer>
 
 <script>
     // ========== Встроенная TOTP библиотека (начало) ==========
@@ -367,7 +305,7 @@
         twoFADialogContent.innerHTML = '<h2>2FA Codes</h2>';
 
         if (Object.keys(twoFA).length === 0) {
-            twoFADialogContent.innerHTML += '<p data-i18n="no2FA">No 2FA secrets saved</p>';
+            twoFADialogContent.innerHTML += '<p>No 2FA secrets saved</p>';
         } else {
             for (const site in twoFA) {
                 const entry = document.createElement('div');

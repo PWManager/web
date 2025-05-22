@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PWManager</title>
+  <style>
+    body {
+      background-color: #1f1f1f;
+      color: white;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      text-align: center;
+    }
+    input {
+      padding: 10px;
+      margin: 10px;
+      width: 250px;
+      background: #2d2d2d;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #2196f3;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #0b7dda;
+    }
+    dialog {
+      background: #2d2d2d;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 20px;
+      width: 80%;
+      max-width: 500px;
+    }
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.7);
+    }
+    .entry {
+      margin: 10px 0;
+      padding: 10px;
+      background: #3d3d3d;
+      border-radius: 4px;
+      word-break: break-all;
+    }
+    .code {
+      font-size: 24px;
+      font-weight: bold;
+      color: #4caf50;
+      margin: 10px 0;
+    }
+
+    .danger_button {
+      background: #ff0000;
+    }
+
+    footer {
+      background: #1f1f1f;
+      color: white;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      right: 2px;
+    }
+  </style>
+</head>
+<body>
+<br><br>
+
+<h1>PWManager</h1>
+
+<div>
+  <h2>Сайт:</h2>
+  <input type="text" id="name" placeholder="Введите имя сайта">
+  <h2>Пароль:</h2>
+  <input type="password" id="password" placeholder="Введите пароль">
+</div>
+
+<div>
+  <button onclick="createPassword()">Сохранить пароль</button>
+  <br><br>
+  <button onclick="viewPasswords()">Просмотреть пароли</button>
+  <br><br>
+  <button onclick="deletePassword()" class="danger_button">Удалить пароль</button>
+  <br><br>
+  <button onclick="generatePassword()">Сгенерировать пароль</button>
+</div>
+
+<div style="margin-top: 20px;">
+  <br><br>
+  <button onclick="save2FA()">Сохранить 2FA секрет</button>
+  <br><br>
+  <button onclick="view2FA()">Просмотреть 2FA Коды</button>
+</div>
+
+<dialog id="passwordDialog">
+  <h1>Сохранённые пароли</h1>
+  <div id="passwordDialogContent"></div>
+  <button onclick="passwordDialog.close()">Закрыть</button>
+</dialog>
+
+<dialog id="twoFADialog">
+  <h1>2FA коды</h1>
+  <div id="twoFADialogContent"></div>
+  <button onclick="twoFADialog.close()">Закрыть</button>
+</dialog>
+
+<footer>
+  <a href="index.html">Change language</a>
+</footer>
+
+<script>
+  // ========== Встроенная TOTP библиотека (начало) ==========
+  // Минифицированная версия необходимых функций из otplib
+  const TOTP = {
+    generateSecret: () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+      let secret = '';
+      for (let i = 0; i < 32; i++) {
+        secret += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return secret;
+    },
+    generate: async (secret) => { // Сделаем функцию асинхронной
+      const key = base32ToBytes(secret);
+      const counter = Math.floor(Date.now() / 30000);
+      const hmac = await hmacSHA1(key, counterToBytes(counter)); // Дождемся результата hmacSHA1
+      const offset = hmac[hmac.length - 1] & 0xf;
+      const binary = ((hmac[offset] & 0x7f) << 24) |
+              ((hmac[offset + 1] & 0xff) << 16) |
+              ((hmac[offset + 2] & 0xff) << 8) |
+              (hmac[offset + 3] & 0xff);
+      return (binary % 1000000).toString().padStart(6, '0');
+    }
+  };
+
+  function base32ToBytes(base32) {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    base32 = base32.replace(/=+$/, '').toUpperCase();
+    let bits = 0, value = 0, output = [];
+    for (let i = 0; i < base32.length; i++) {
+      const index = alphabet.indexOf(base32[i]);
+      if (index === -1) throw new Error('Invalid base32 character');
+      value = (value << 5) | index;
+      bits += 5;
+      if (bits >= 8) {
+        output.push((value >>> (bits - 8)) & 0xff);
+        bits -= 8;
+      }
+    }
+    return new Uint8Array(output);
+  }
+
+  function counterToBytes(counter) {
+    const buffer = new ArrayBuffer(8);
+    const view = new DataView(buffer);
+    view.setBigUint64(0, BigInt(counter), false);
+    return new Uint8Array(buffer);
+  }
+
+  async function hmacSHA1(key, message) {
+    const cryptoKey = await crypto.subtle.importKey(
+            'raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, message);
+    return new Uint8Array(signature);
+  }
+
+  // Пример использования (важно использовать async/await при вызове TOTP.generate)
+  async function testTOTP() {
+    const secret = TOTP.generateSecret();
+    const token = await TOTP.generate(secret);
+  }
+
+  testTOTP();
+
+  // DOM элементы
+  const nameInput = document.getElementById('name');
+  const passwordInput = document.getElementById('password');
+  const passwordDialog = document.getElementById('passwordDialog');
+  const passwordDialogContent = document.getElementById('passwordDialogContent');
+  const twoFADialog = document.getElementById('twoFADialog');
+  const twoFADialogContent = document.getElementById('twoFADialogContent');
+  let twoFATimer = null;
+
+  // Основные функции
+  function createPassword() {
+    const site = nameInput.value;
+    const password = passwordInput.value;
+
+    if (!site || !password) {
+      alert("Введите имя сайта и пароль!");
+      return;
+    }
+
+    const passwords = JSON.parse(localStorage.getItem('passwords') || '{}');
+    passwords[site] = password;
+    localStorage.setItem('passwords', JSON.stringify(passwords));
+
+    alert("Пароль сохранён!");
+    nameInput.value = '';
+    passwordInput.value = '';
+  }
+
+  function viewPasswords() {
+    const passwords = JSON.parse(localStorage.getItem('passwords') || '{}');
+    passwordDialogContent.innerHTML = '<h2>Сохранённые пароли</h2>';
+
+    if (Object.keys(passwords).length === 0) {
+      passwordDialogContent.innerHTML += '<p>Нет сохранённых паролей</p>';
+    } else {
+      for (const site in passwords) {
+        const entry = document.createElement('div');
+        entry.className = 'entry';
+        entry.innerHTML = `
+                        <strong>${site}:</strong> ${'*'.repeat(passwords[site].length)}
+                        <button onclick="copyToClipboard('${passwords[site]}')">Скопировать</button>
+                    `;
+        passwordDialogContent.appendChild(entry);
+      }
+    }
+    passwordDialog.showModal();
+  }
+
+  function deletePassword() {
+    const site = nameInput.value;
+    if (!site) {
+      alert("Пожалуйста, введите имя сайта!");
+      return;
+    }
+
+    const passwords = JSON.parse(localStorage.getItem('passwords') || {});
+    if (passwords[site]) {
+      delete passwords[site];
+      localStorage.setItem('passwords', JSON.stringify(passwords));
+      alert("Пароль удалён!");
+    } else {
+      alert("Нет пароля для этого сайта!");
+    }
+  }
+
+  function generatePassword() {
+    const length = Math.min(64, Math.max(8,
+            parseInt(prompt("Enter password length (8-64):") || 16)));
+
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]\\:;?><,./-=';
+    let password = '';
+
+    // Гарантируем разные типы символов
+    password += chars.charAt(Math.floor(Math.random() * 26)); // A-Z
+    password += chars.charAt(26 + Math.floor(Math.random() * 26)); // a-z
+    password += chars.charAt(52 + Math.floor(Math.random() * 10)); // 0-9
+    password += chars.charAt(62 + Math.floor(Math.random() * 30)); // спецсимвол
+
+    // Дополняем до нужной длины
+    for (let i = password.length; i < length; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    // Перемешиваем
+    passwordInput.value = password.split('').sort(() => 0.5 - Math.random()).join('');
+  }
+
+  function save2FA() {
+    const site = nameInput.value || prompt("Введите имя сайта:");
+    if (!site) {
+      alert("Имя сайта не может быть пустым!");
+      return;
+    }
+
+    let secret = prompt("Введите 2FA секрет или оставьте пустым для генерации:");
+    if (!secret) {
+      secret = TOTP.generateSecret();
+      alert(`Новый 2FA секрет для ${site}:\n${secret}\n\nСкопируйте и сохраните этот секрет!`);
+    }
+
+    const twoFA = JSON.parse(localStorage.getItem('2FA') || '{}');
+    twoFA[site] = secret;
+    localStorage.setItem('2FA', JSON.stringify(twoFA));
+    alert("2FA секрет сохранён!");
+  }
+
+  async function view2FA() {
+    const twoFA = JSON.parse(localStorage.getItem('2FA') || '{}');
+    twoFADialogContent.innerHTML = '<h2>2FA коды</h2>';
+
+    if (Object.keys(twoFA).length === 0) {
+      twoFADialogContent.innerHTML += '<p>Нет сохраненных 2FA</p>';
+    } else {
+      for (const site in twoFA) {
+        const entry = document.createElement('div');
+        entry.className = 'entry';
+
+        // Генерируем код асинхронно
+        const code = await generateTOTPCode(twoFA[site]);
+
+        entry.innerHTML = `
+                        <h3>${site}</h3>
+                        <div class="code">${code}</div>
+                        <div><strong>Секрет:</strong> ${'*'.repeat(twoFA[site].length)}</div>
+                        <button onclick="copyToClipboard('${code}')">Скопировать код</button>
+                        <button onclick="copyToClipboard('${twoFA[site]}')">Скопировать секрет</button>
+                    `;
+        twoFADialogContent.appendChild(entry);
+      }
+    }
+
+    twoFADialog.showModal();
+
+    // Обновляем коды каждые 30 секунд
+    if (twoFATimer) clearInterval(twoFATimer);
+    twoFATimer = setInterval(async () => {
+      const entries = twoFADialogContent.querySelectorAll('.entry');
+      for (const entry of entries) {
+        const secret = entry.querySelector('div:nth-child(3)').textContent.replace('Секрет: ', '');
+        const codeElement = entry.querySelector('.code');
+        codeElement.textContent = await generateTOTPCode(secret);
+      }
+    }, 30000);
+  }
+
+  async function generateTOTPCode(secret) {
+    try {
+      return TOTP.generate(secret);
+    } catch (e) {
+      console.error("Ошибка при генерации кода TOTP:", e);
+      return "Ошибка";
+    }
+  }
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Скопировано!");
+    });
+  }
+</script>
+</body>
+</html>
